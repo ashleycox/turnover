@@ -66,6 +66,8 @@ package final class DocumentAdapters {
     private let recoveryWorker = AXWalkRunner<RecoveredDocumentFocus?>()
     private var cancelRecovery: (() -> Void)?
     private var recoveryPending = false
+    private var recoveryGeneration = 0
+    package var isRecovering: Bool { recoveryPending }
     private var foregroundBlocked = false
     private var recoveryOwnerPid: pid_t?
     package typealias RecoveryTimer = (@escaping @MainActor @Sendable () -> Void) -> @MainActor () -> Void
@@ -99,6 +101,7 @@ package final class DocumentAdapters {
     }
 
     package func focusChanged(_ obj: TurnOverObject?, ancestors: [TurnOverObject], document: BrowseModeDocument?) {
+        recoveryGeneration += 1
         guard enabled else { leave(); return }
         // Menus and transient foreground mismatches pause the session; recovery probes refresh native focus
         // after they end even if the application emits no replacement focus event.
@@ -121,6 +124,7 @@ package final class DocumentAdapters {
     package func pageChanged(root: AXUIElement, url: String) {
         guard self.root?.isSame(root) == true else { return }
         if let current, current.context.identity == DocumentContext.identity(url) { return }
+        recoveryGeneration += 1
         select(DocumentContext(root: root, url: url, ownerPid: ownerPid, window: current?.context.window))
     }
 
@@ -170,10 +174,11 @@ package final class DocumentAdapters {
     }
 
     package func leave() {
+        recoveryGeneration += 1
         current?.adapter.deactivate()
         current = nil; root = nil; focus = nil; ownerPid = 0
     }
-    package func foregroundChanged() { foregroundBlocked = true; recover() }
+    package func foregroundChanged() { recoveryGeneration += 1; foregroundBlocked = true; recover() }
 
     private func startRecovery() {
         guard enabled, cancelRecovery == nil else { return }
@@ -184,10 +189,11 @@ package final class DocumentAdapters {
         guard enabled, environmentAllowsRecovery(), !recoveryPending, let pid = frontmostPid(),
               root != nil || recoveryOwnerPid == pid || API.focusAncestors.contains(where: { $0.axRole == "AXWebArea" }) else { return }
         recoveryPending = true
+        let generation = recoveryGeneration
         recoveryWorker.submit(collect: { DocumentFocusQuery.read(pid: pid, request: $0) }, publish: { [weak self] result in
             guard let self else { return }
             recoveryPending = false
-            guard enabled, environmentAllowsRecovery(), frontmostPid() == pid, let result else { return }
+            guard enabled, recoveryGeneration == generation, environmentAllowsRecovery(), frontmostPid() == pid, let result else { return }
             if let context = result.context, let current, current.context.root.isSame(context.root),
                current.context.identity == context.identity, focus?.element.isSame(result.focus.element) == true,
                !foregroundBlocked, allowed(), API.focusObject?.isSameElement(as: result.focus.element) == true {
@@ -210,6 +216,7 @@ package final class DocumentAdapters {
     }
     package func resume() { enabled = true; startRecovery(); recover() }
     package func forget(pid: pid_t) {
+        recoveryGeneration += 1
         for entry in entries where entry.context.ownerPid == pid || entry.context.root.pid == pid {
             entry.adapter.deactivate()
             if current === entry { current = nil; root = nil; focus = nil }
