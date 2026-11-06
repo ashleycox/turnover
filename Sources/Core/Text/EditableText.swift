@@ -398,6 +398,11 @@ open class EditableText: TurnOverObject {
 
     /// Enter: read what is on the new line before the caret (auto numbering, a bullet), or just note the move.
     func newLineScript(_ gesture: KeyboardGesture) {
+        if DocumentAdapters.shared.usesNativeTextFeedback(for: element) {
+            gesture.send()
+            Speech.speakTypedCharacter("\r", inEditable: true)   // Enter must still flush the completed word.
+            return
+        }
         // A one-line field has no new line: Return in Safari's address field said "new line" as the page was opening
         // (12 Oct 2026), after a 100 ms wait for a caret that never moves there.
         if axRole == "AXTextField" { gesture.send(); return }
@@ -471,6 +476,7 @@ open class EditableText: TurnOverObject {
     }
 
     func deleteScript(_ gesture: KeyboardGesture, _ unit: TextUnit) {
+        if DocumentAdapters.shared.usesNativeTextFeedback(for: element) { gesture.send(); return }
         if role == .passwordEdit { gesture.send(); return }   // SecureEcho hears the field get shorter
         guard let info = try? makeTextInfo(.caret) else { gesture.send(); return }
         let bookmark = info.bookmark

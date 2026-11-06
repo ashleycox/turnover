@@ -253,7 +253,8 @@ func googleDocsTests() {
             KeyboardGesture.poster = { _ in posted.value += 1 }
             AXReplay.reads = []
             let cases = [("caret_moveByCharacter", "kb:rightArrow"), ("caret_moveByLine", "kb:downArrow"),
-                         ("caret_changeSelection", "kb:shift+rightArrow"), ("caret_backspaceCharacter", "kb:backspace")]
+                         ("caret_changeSelection", "kb:shift+rightArrow"), ("caret_backspaceCharacter", "kb:backspace"),
+                         ("caret_deleteCharacter", "kb:delete"), ("caret_newLine", "kb:enter")]
             for (name, key) in cases {
                 guard let script = field.script(named: name), let gesture = KeyboardGesture(identifier: key) else { Harness.fail("editing script \(name)"); continue }
                 script.handler(gesture)
@@ -400,6 +401,29 @@ func googleDocsTests() {
             while recovered.count < 2, Date() < until { RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.005)) }
             expect(recovered, [4, 14], "a foreground-window change discovers its actual editor without a new focus notification")
             check(manager.usesNativeTextFeedback(for: AXReplay.element(14)), "the new window owns feedback")
+        }
+    }
+
+    test("Google editing keys: Return retains word echo while avoiding the hidden caret") {
+        withFixture { adapters, spoken in
+            let saved = config
+            defer { config = saved }
+            let reads = GoogleReads()
+            adapters.register("google-editors", matches: GoogleDocs.isGoogleEditor, make: reads.session)
+            let field = setFocus(4)
+            config.keyboard.speakTypedCharacters = .off
+            config.keyboard.speakTypedWords = .off
+            Speech.speakTypedCharacter("\r", inEditable: true)
+            config.keyboard.speakTypedWords = .always
+            for character in "sample" { Speech.speakTypedCharacter(character, inEditable: true) }
+            let posted = Locked(0)
+            KeyboardGesture.poster = { _ in posted.value += 1 }
+            AXReplay.reads = []
+            guard let script = field.script(named: "caret_newLine"), let key = KeyboardGesture(identifier: "kb:enter") else { return check(false, "Return command") }
+            script.handler(key)
+            expect(posted.value, 1, "Return is delivered exactly once")
+            expect(spoken().map(\.0), ["sample"], "Enter still echoes the completed word")
+            check(!(AXReplay.reads ?? []).contains { [kAXSelectedTextRangeAttribute, kAXValueAttribute, kAXNumberOfCharactersAttribute].contains($0.attribute) }, "the echo does not require a hidden AX caret wait")
         }
     }
 
