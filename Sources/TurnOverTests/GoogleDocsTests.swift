@@ -386,7 +386,12 @@ func googleDocsTests() {
             API.setFocusObject(TurnOverObject(element: AXReplay.element(8)), ancestors: [TurnOverObject(element: AXReplay.element(2)), TurnOverObject(element: AXReplay.element(1))])
             eligible.value = true
             manager.recover()
+            manager.foregroundChanged()   // retires even a result already waiting for main delivery
             var until = Date().addingTimeInterval(2)
+            while manager.isRecovering, Date() < until { RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.005)) }
+            check(recovered.isEmpty, "a newer foreground observation retires the older recovery")
+            manager.recover()
+            until = Date().addingTimeInterval(2)
             while recovered.isEmpty, Date() < until { RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.005)) }
             expect(recovered, [4], "native focus is re-read after the menu closes")
             check(manager.usesNativeTextFeedback(for: AXReplay.element(4)), "editor feedback resumes")
