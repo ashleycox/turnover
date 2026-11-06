@@ -140,6 +140,7 @@ public final class BrowseModeDocument: ScriptableObject {
         pageGeneration += 1
         saidPartial = false
         buffer.build()
+        DocumentAdapters.shared.pageChanged(root: webArea, url: now)
         if !first {
             // A new page starts in browse mode, as NVDA's new document does. Focus mode carried over from the page
             // before (Google's search box) kept the new page from being announced, and its keys went to the page
@@ -153,7 +154,6 @@ public final class BrowseModeDocument: ScriptableObject {
         Log.io("browse mode: page \(Log.words(BrowseModeHandler.shortURL(now))) — resuming at \(position)\(saved == nil ? "" : " (saved \(saved!.offset))")")
         announceWhenReady = announceWhenReady || announce
         if announce, !buffer.lines.isEmpty { announcePage() }
-        GoogleDocs.checkSoon(self)
         if !first, buffer.lines.isEmpty, webArea.role != "AXWebArea" { followReplacedRoot(tries: 10) }
         return true
     }

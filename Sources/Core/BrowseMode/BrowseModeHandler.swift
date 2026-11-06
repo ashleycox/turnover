@@ -154,6 +154,7 @@ public final class BrowseModeHandler {
     }
 
     public func forget(pid: pid_t) {
+        DocumentAdapters.shared.forget(pid: pid)
         lock.lock()
         let removed = documents.filter { $0.webArea.pid == pid }
         documents.removeAll { $0.webArea.pid == pid }

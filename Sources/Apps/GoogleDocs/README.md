@@ -9,3 +9,10 @@ Record support as browser tasks under [Safari](../Safari/STATUS.md) or [Chrome](
 ## Checks
 
 Use a public sample document. Record the browser and version, which Google editor, its screen reader support setting, TurnOver's keyboard style and focus mode, and what typing, caret movement and selection announce. Check each editor separately. Keep private document text out of fixtures and logs.
+
+## Document adapter
+
+`GoogleDocsSession` owns each document's announcement baseline, 100 ms timer and delayed support warning.
+`GoogleDocsQuery` collects bounded AX data off main. Query/fragment changes keep the same session, and native
+focus recovery handles menu/window transitions without requiring another focus notification.
+See [document adapters](../../../docs/DOCUMENT-ADAPTERS.md). Return and forward Delete changes are separate.
