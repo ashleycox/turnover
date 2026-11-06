@@ -258,7 +258,7 @@ open class EditableText: TurnOverObject {
     }
 
     func caretMovement(_ gesture: KeyboardGesture, _ unit: TextUnit) {
-        // Google Docs, Sheets, Slides: the text box is a hidden typing target; Google says the move itself.
+        // A document adapter may own feedback instead of this field's accessibility caret.
         if DocumentAdapters.shared.usesNativeTextFeedback(for: element) { gesture.send(); return }
         guard let info = try? makeTextInfo(.caret) else { gesture.send(); return }
         let boundarySound = appModule.playsNativeCaretBoundarySound
@@ -420,7 +420,7 @@ open class EditableText: TurnOverObject {
     }
 
     func backspaceScript(_ gesture: KeyboardGesture, _ unit: TextUnit) {
-        if DocumentAdapters.shared.usesNativeTextFeedback(for: element) { gesture.send(); return }   // Google says what was deleted
+        if DocumentAdapters.shared.usesNativeTextFeedback(for: element) { gesture.send(); return }
         if role == .passwordEdit { gesture.send(); return }   // SecureEcho hears the field get shorter
         guard let old = try? makeTextInfo(.caret) else { gesture.send(); return }
         let bookmark = old.bookmark

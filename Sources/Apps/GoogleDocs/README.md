@@ -12,7 +12,7 @@ Use a public sample document. Record the browser and version, which Google edito
 
 ## Document adapter
 
-`GoogleDocsDocumentAdapter` delegates the existing editor recognition, focus/caret handling and delayed support
-check through the shared `DocumentAdapter` boundary. `GoogleDocs.swift` retains its implementation, timer,
-baseline, limits and dated observations unchanged. Return and forward Delete retain the ordinary editing path.
-Background polling and additional key pass-through are separate follow-ups.
+`GoogleDocsSession` owns each document's announcement baseline, 100 ms timer and delayed support warning.
+`GoogleDocsQuery` collects bounded AX data off main. Query/fragment changes keep the same session, and native
+focus recovery handles menu/window transitions without requiring another focus notification.
+See [document adapters](../../../docs/DOCUMENT-ADAPTERS.md). Return and forward Delete changes are separate.

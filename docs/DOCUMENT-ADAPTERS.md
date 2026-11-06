@@ -1,17 +1,24 @@
-# Document adapter boundary
+# Background document feedback
 
-Shared events, browse mode and editing code call `DocumentAdapters`; the built-in registration supplies the
-Google editor adapter from `Sources/Apps/GoogleDocs`. Browser app modules continue to own native browser UI.
+This follow-up to the adapter boundary moves Google editor recognition, announcement reads and support checks
+to bounded workers under issue 119. The original 12 Oct 2026 observations remain beside the implementation.
+The polling interval is 100 ms, and the support check still starts after three seconds.
 
-This first change delegates to the existing `GoogleDocs.swift` implementation unchanged. Recognition, the global
-100 ms timer and announcement baseline, the three-second support check, private speech, limits and key decisions
-are retained. The full 12 Oct 2026 observations remain beside the original code. Return still calls typed-character
-echo, and forward Delete retains the ordinary editing path.
+Main owns each session and its last complete announcement. Worker requests carry immutable root, document and
+window identities. Query and fragment changes preserve a session; changing the path or native root replaces it.
+A matching reply releases its pending request before validity checks, so a menu or foreground mismatch cannot
+leave polling stopped permanently. Incomplete reads do not establish that support is off.
 
-Background polling belongs to a follow-up under issue 119. Return and forward Delete pass-through require a
-separate issue and change. Those follow-ups should test query/fragment identity, invalid reply cleanup, and
-recovery after menus or window switches without a focus event.
+A transient menu/foreground mismatch pauses output without discarding its baseline. A separate bounded native
+focus query runs every 250 ms while the document environment permits it, and runs on foreground changes too.
+After a menu closes or Safari changes windows without a native focus notification, it discovers the actual
+focused editor/window and asks the normal focus pipeline to adopt that observation. It never selects an editor
+from stale event state or while a menu or handover disallows it. Secure/non-document focus stays outside the
+adapter. Recovery queries contain no text values.
 
-Verification uses the custom test harness and `./build.sh --no-install`. The unchanged Google implementation can
-also be compared byte-for-byte with main. Speech and browser/editor trials must be reported separately from
-automated checks.
+Return and forward Delete retain the ordinary editing path in this change. Their additional native pass-through
+and Return word-echo regression test belong to a separate issue and branch.
+
+Synthetic tests cover bounded provider reads, query/fragment identity, invalid reply cleanup, recovery without
+focus events, private speech and cancellation. Live Docs/Sheets/Slides listening checks in Safari and Chrome
+remain distinct from these automated results.
